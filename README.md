@@ -85,3 +85,5 @@ The STM32N657X0-Q Nucleo board streams the person count via its main serial port
 2. **STM32 TX (PE5)** <-> **ESP32 RX2 (Pin 16)**
 
 The Arduino code for the ESP32 is included in the `ESP32_N657X0_Q` folder. It features Multi-WiFi connection logic and uses a `secrets.h` file (which is ignored by Git) to keep your Wi-Fi credentials and MQTT passwords safe.
+
+![Hardware Connection Diagram](images/N567_ESP32.jpg)

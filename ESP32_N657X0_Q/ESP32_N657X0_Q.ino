@@ -73,6 +73,9 @@ void loop() {
     connectToMQTT();
   }
 
+  // Laisser mqtt_client maintenir sa connexion et traiter les paquets entrants
+  mqtt_client.loop();
+
   // S'il y a des données qui arrivent de la STM32...
   if (Serial2.available()) {
     // On lit la ligne jusqu'au retour à la ligne

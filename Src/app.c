@@ -990,7 +990,7 @@ static void pp_thread_fct(void *arg) {
     /* On envoie uniquement si la valeur stable a changé depuis le dernier envoi
      */
     if (current_stable_count != last_sent_count) {
-      printf("{ \"person\", %d }\r\n", current_stable_count);
+      printf("{ \"person\": %d }\r\n", current_stable_count);
       last_sent_count = current_stable_count;
     }
     /* ---------------------------------------------------- */
