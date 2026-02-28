@@ -48,6 +48,10 @@
 #define APP_VERSION_STRING "dev"
 #endif
 
+#define HEADLESS_MODE                                                          \
+  0 // Mettre à 1 pour économiser de l'énergie et ne pas utiliser la webcam UVC.
+    // Mettre à 0 pour utiliser la webcam UVC normalement.
+
 #define FREERTOS_PRIORITY(p)                                                   \
   ((UBaseType_t)((int)tskIDLE_PRIORITY + configMAX_PRIORITIES / 2 + (p)))
 
@@ -1131,6 +1135,7 @@ void app_run() {
   /* Enable DWT so DWT_CYCCNT works when debugger not attached */
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
 
+#if !HEADLESS_MODE
   /* screen init */
   memset(lcd_bg_buffer, 0, sizeof(lcd_bg_buffer));
   CACHE_OP(
@@ -1139,6 +1144,7 @@ void app_run() {
   CACHE_OP(
       SCB_CleanInvalidateDCache_by_Addr(lcd_fg_buffer, sizeof(lcd_fg_buffer)));
   Display_init();
+#endif
 
   /* create buffer queues */
   ret = bqueue_init(&nn_input_queue, 2,
@@ -1178,18 +1184,22 @@ void app_run() {
   hdl = xTaskCreateStatic(pp_thread_fct, "pp", configMINIMAL_STACK_SIZE * 2,
                           NULL, pp_priority, pp_thread_stack, &pp_thread);
   assert(hdl != NULL);
+#if !HEADLESS_MODE
   hdl = xTaskCreateStatic(dp_thread_fct, "dp", configMINIMAL_STACK_SIZE * 2,
                           NULL, dp_priority, dp_thread_stack, &dp_thread);
   assert(hdl != NULL);
+#endif
   hdl = xTaskCreateStatic(isp_thread_fct, "isp", configMINIMAL_STACK_SIZE * 2,
                           NULL, isp_priority, isp_thread_stack, &isp_thread);
   assert(hdl != NULL);
 }
 
 int CMW_CAMERA_PIPE_FrameEventCallback(uint32_t pipe) {
+#if !HEADLESS_MODE
   if (pipe == DCMIPP_PIPE1)
     app_main_pipe_frame_event();
-  else if (pipe == DCMIPP_PIPE2)
+#endif
+  if (pipe == DCMIPP_PIPE2)
     app_ancillary_pipe_frame_event();
 
   return HAL_OK;
