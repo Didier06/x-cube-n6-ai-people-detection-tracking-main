@@ -87,3 +87,62 @@ The STM32N657X0-Q Nucleo board streams the person count via its main serial port
 The Arduino code for the ESP32 is included in the `ESP32_N657X0_Q` folder. It features Multi-WiFi connection logic and uses a `secrets.h` file (which is ignored by Git) to keep your Wi-Fi credentials and MQTT passwords safe.
 
 ![Hardware Connection Diagram](images/N567_ESP32.jpg)
+
+---
+
+## 📷 Remote UVC Webcam Control via MQTT
+
+This project supports **remotely enabling or disabling the UVC webcam stream** over MQTT, which is useful when no PC is available to view the video feed and you want to **save energy**.
+
+> The AI person detection and MQTT data publishing continue to operate normally regardless of the webcam state.
+
+### How It Works
+
+When the ESP32 receives a command message on the **inbound MQTT topic**, it forwards the payload to the STM32 Nucleo board over the hardware serial port (`Serial2` → `USART1`). The firmware parses the message and dynamically enables or disables the UVC video stream.
+
+### MQTT Topics
+
+| Direction | Topic | Description |
+|-----------|-------|-------------|
+| Outbound (detections) | `FABLAB_21_22/nucleoN657/detect/out/` | Published by the ESP32 with person count |
+| **Inbound (commands)** | `FABLAB_21_22/nucleoN657/detect/in/` | Subscribed by the ESP32 to receive webcam control commands |
+
+### Payload Format
+
+Send a JSON message to the inbound topic:
+
+```json
+{"webcam":0}
+```
+
+| Value | Effect |
+|-------|--------|
+| `{"webcam":0}` | **Disables** the UVC webcam stream → saves energy |
+| `{"webcam":1}` | **Re-enables** the UVC webcam stream |
+
+### Full Message Flow
+
+```
+[MQTT Client]  --publishes-->  FABLAB_21_22/nucleoN657/detect/in/
+                               payload: {"webcam":0}
+                                    |
+                                    ▼
+             [ESP32]  mqttCallback() detects "webcam" key
+                      Serial2.println(payload)  →  TX2 pin 17
+                                    |
+                                    ▼
+             [STM32 Nucleo]  USART1 RX interrupt (PE6)
+                             HAL_UART_RxCpltCallback() parses payload
+                             → headless_mode_active = 1  (UVC OFF)
+                             → UVC frame copy suspended, AI still running
+```
+
+### Hardware Wiring for Bidirectional Communication
+
+| Signal | STM32 Nucleo Pin | ESP32 Pin |
+|--------|-----------------|-----------|
+| GND    | GND             | GND       |
+| TX (detections → ESP32) | PE5 (USART1 TX) | GPIO 16 (RX2) |
+| RX (commands ← ESP32)   | PE6 (USART1 RX) | GPIO 17 (TX2) |
+
+> **Note:** The ESP32 `TX2` pin (17) must be connected to the STM32 `USART1 RX` pin (PE6) to enable the downlink command path.

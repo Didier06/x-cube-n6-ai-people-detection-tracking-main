@@ -19,7 +19,6 @@
 #include "app.h"
 
 #include <stdint.h>
-#include <string.h>
 
 #include "app_cam.h"
 #include "app_config.h"
@@ -30,7 +29,6 @@
 #include "stm32_lcd.h"
 #include "stm32_lcd_ex.h"
 #include "stm32n6xx_hal.h"
-#include "stm32n6xx_hal_uart_ex.h"
 #ifdef STM32N6570_DK_REV
 #include "stm32n6570_discovery.h"
 #else
@@ -50,42 +48,9 @@
 #define APP_VERSION_STRING "dev"
 #endif
 
-extern UART_HandleTypeDef huart1;
-uint8_t uart_rx_buf;
-char mqtt_payload[128];
-int mqtt_payload_idx = 0;
-
-volatile int headless_mode_active =
-    0; // Mettre à 0 via MQTT pour économiser de l'énergie (Webcam OFF).
-
-void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&huart1); }
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  if (huart->Instance == USART1) {
-    if (uart_rx_buf == '\n' || uart_rx_buf == '\r') {
-      mqtt_payload[mqtt_payload_idx] = '\0';
-      if (strstr(mqtt_payload, "\"webcam\":0")) {
-        headless_mode_active = 1;
-      } else if (strstr(mqtt_payload, "\"webcam\":1")) {
-        headless_mode_active = 0;
-      }
-      mqtt_payload_idx = 0;
-    } else {
-      if (mqtt_payload_idx < sizeof(mqtt_payload) - 1) {
-        mqtt_payload[mqtt_payload_idx++] = uart_rx_buf;
-      }
-    }
-    HAL_UART_Receive_IT(&huart1, &uart_rx_buf, 1);
-  }
-}
-
-/* Callbacks UARTEx requis par HAL_UART_IRQHandler mais absents du build
-   car stm32n6xx_hal_uart_ex.c n'est pas compilé dans ce projet. */
-void HAL_UARTEx_WakeupCallback(UART_HandleTypeDef *huart) { UNUSED(huart); }
-void HAL_UARTEx_RxFifoFullCallback(UART_HandleTypeDef *huart) { UNUSED(huart); }
-void HAL_UARTEx_TxFifoEmptyCallback(UART_HandleTypeDef *huart) {
-  UNUSED(huart);
-}
+#define HEADLESS_MODE                                                          \
+  0 // Mettre à 1 pour économiser de l'énergie et ne pas utiliser la webcam UVC.
+    // Mettre à 0 pour utiliser la webcam UVC normalement.
 
 #define FREERTOS_PRIORITY(p)                                                   \
   ((UBaseType_t)((int)tskIDLE_PRIORITY + configMAX_PRIORITIES / 2 + (p)))
@@ -1037,9 +1002,7 @@ static void pp_thread_fct(void *arg) {
     bqueue_put_free(&nn_output_queue);
     /* It's possible xqueue is empty if display is slow. So don't check error
      * code that may by pdFALSE in that case */
-    if (!headless_mode_active) {
-      xSemaphoreGive(disp.update);
-    }
+    xSemaphoreGive(disp.update);
   }
 }
 
@@ -1172,6 +1135,7 @@ void app_run() {
   /* Enable DWT so DWT_CYCCNT works when debugger not attached */
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
 
+#if !HEADLESS_MODE
   /* screen init */
   memset(lcd_bg_buffer, 0, sizeof(lcd_bg_buffer));
   CACHE_OP(
@@ -1180,11 +1144,7 @@ void app_run() {
   CACHE_OP(
       SCB_CleanInvalidateDCache_by_Addr(lcd_fg_buffer, sizeof(lcd_fg_buffer)));
   Display_init();
-
-  /* Activer l'interruption UART pour recevoir les commandes MQTT via ESP32 */
-  HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(USART1_IRQn);
-  HAL_UART_Receive_IT(&huart1, &uart_rx_buf, 1);
+#endif
 
   /* create buffer queues */
   ret = bqueue_init(&nn_input_queue, 2,
@@ -1224,18 +1184,21 @@ void app_run() {
   hdl = xTaskCreateStatic(pp_thread_fct, "pp", configMINIMAL_STACK_SIZE * 2,
                           NULL, pp_priority, pp_thread_stack, &pp_thread);
   assert(hdl != NULL);
+#if !HEADLESS_MODE
   hdl = xTaskCreateStatic(dp_thread_fct, "dp", configMINIMAL_STACK_SIZE * 2,
                           NULL, dp_priority, dp_thread_stack, &dp_thread);
   assert(hdl != NULL);
+#endif
   hdl = xTaskCreateStatic(isp_thread_fct, "isp", configMINIMAL_STACK_SIZE * 2,
                           NULL, isp_priority, isp_thread_stack, &isp_thread);
   assert(hdl != NULL);
 }
 
 int CMW_CAMERA_PIPE_FrameEventCallback(uint32_t pipe) {
-  if (pipe == DCMIPP_PIPE1 && !headless_mode_active)
+#if !HEADLESS_MODE
+  if (pipe == DCMIPP_PIPE1)
     app_main_pipe_frame_event();
-
+#endif
   if (pipe == DCMIPP_PIPE2)
     app_ancillary_pipe_frame_event();
 
