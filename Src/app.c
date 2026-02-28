@@ -962,6 +962,39 @@ static void pp_thread_fct(void *arg) {
     ret = xSemaphoreGive(disp.lock);
     assert(ret == pdTRUE);
 
+    /* --- Stabilisation du comptage et envoi série --- */
+    static int last_sent_count = -1;
+    static uint32_t last_count_change_time = 0;
+    static int current_stable_count = 0;
+    int detected_now = 0;
+
+#ifdef TRACKER_MODULE
+    detected_now = disp.info.tboxes_valid_nb;
+#else
+    detected_now = disp.info.nb_detect;
+#endif
+
+    /* Si le nombre perçu à l'instant T change par rapport à notre compte stable
+     */
+    if (detected_now != current_stable_count) {
+      /* Est-ce que ce nouveau nombre a été maintenu pendant au moins 500 ms
+       * (0.5 sec) ? */
+      if ((HAL_GetTick() - last_count_change_time) > 500) {
+        current_stable_count = detected_now; // On valide ce nouveau compte
+      }
+    } else {
+      /* Le compte n'a pas changé, on réinitialise le chronomètre de filtre */
+      last_count_change_time = HAL_GetTick();
+    }
+
+    /* On envoie uniquement si la valeur stable a changé depuis le dernier envoi
+     */
+    if (current_stable_count != last_sent_count) {
+      printf("{ \"person\", %d }\r\n", current_stable_count);
+      last_sent_count = current_stable_count;
+    }
+    /* ---------------------------------------------------- */
+
     bqueue_put_free(&nn_output_queue);
     /* It's possible xqueue is empty if display is slow. So don't check error
      * code that may by pdFALSE in that case */

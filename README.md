@@ -70,3 +70,18 @@ The script automates these steps using `STM32_SigningTool_CLI` and `STM32_Progra
 4. **Power Cycle:** Physically disconnect the USB C cable from the Nucleo board, then plug it back in.
    *(This ensures the JTAG/SWD Debugger built into the board completely disengages the processor HALT state.)*
 5. The AI People Tracking software should instantly stream output to the serial console and run neural network detections!
+
+---
+
+## 📡 Wi-Fi & MQTT Integration (ESP32)
+
+To enable wireless communication and send the AI detection data (e.g., number of tracked people) over Wi-Fi, this project supports integration with an external ESP32 module.
+
+The STM32N657X0-Q Nucleo board streams the person count via its main serial port (USART1 at 115200 bps). An ESP32 can be connected via its hardware serial port (`Serial2`) to listen to this output, parse the JSON payload (e.g., `{ "person", 3 }`), and publish it to an MQTT broker.
+
+### Hardware Connection (Nucleo N6 to ESP32)
+
+1. **STM32 GND** <-> **ESP32 GND**
+2. **STM32 TX (PE5)** <-> **ESP32 RX2 (Pin 16)**
+
+The Arduino code for the ESP32 is included in the `ESP32_N657X0_Q` folder. It features Multi-WiFi connection logic and uses a `secrets.h` file (which is ignored by Git) to keep your Wi-Fi credentials and MQTT passwords safe.
