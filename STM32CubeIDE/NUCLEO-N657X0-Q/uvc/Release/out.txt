@@ -1,0 +1,76 @@
+
+C:\Doc_local\STMCUBE\x-cube-n6-ai-people-detection-tracking-main\STM32CubeIDE\NUCLEO-N657X0-Q\uvc\Release>"C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_SigningTool_CLI.exe" -bin detect_person2.bin -nk -t ssbl -hv 2.3 -o signed.bin 
+QIODevice::read (QFile, "detect_person2.bin"): device not open
+      -------------------------------------------------------------------
+                          STM32 Signing Tool v2.22.0                   
+      -------------------------------------------------------------------
+
+Error: binary file does not exist: detect_person2.bin
+Available commands:
+
+--help      -h   -?       : Show help
+--version        -v       : Display this program version
+
+--binary-image   -bin     : Input binary image file path
+--input          -in         Syntax 1: -bin <File_Path>
+                             Syntax 2: -in <File_Path>
+
+--public-key     -pubk    : Public keys file paths
+                             Syntax: -pubk <File_Path{1..8}>
+                             Note for header v1: use just one key path 
+                             Note for header v2: use 8 keys paths 
+--private-key    -prvk    : Private key file path
+                             Syntax: -prvk <File_Path>
+--password       -pwd     : Password of the private key
+                             Syntax: -pwd <Password>
+
+--image-version  -iv      : Image version
+                             Syntax: -iv <Version>
+                             Note : 1 is the default version value
+--load-address   -la      : Load address of image
+                             Syntax: -la <Load_Address>
+--entry-point    -ep      : Image entry point
+                             Syntax: -ep <Entry_Point>
+--option-flags   -of      : Option flags of image
+                             Syntax: -of <Option_Flags>
+--algorithm      -a       : 1. (P-256 NIST) 2. (Brainpool 256) 3. (P-384 NIST) 4. (Brainpool 384)
+                             Syntax: -a <2>
+                             Note : 1- P256NIST is the default algo
+--type           -t       : Binary Type  
+                             Syntax: -t <type>
+                             Possible values : ssbl fsbl teeh teed teex copro
+
+--enc-dc         -encdc   : Encryption derivation constant for FSBL encryption [header v2] 
+                             Syntax: -encdc <Deriv_Val>
+--enc-key        -enck    : OEM secret file for FSBL encryption [header v2] 
+                             Syntax: -enck <Key_Path>
+--output         -o       : Output file path
+                             Syntax: -o <Output_File_Path>
+--silent         -s       : Silent mode, no prompt messages
+                          
+--dump-header    -dump    : Parse and dump image header
+                             Syntax: -dump <File_Path>
+--na-payload     -nap     : Non authenticated input payload path [only for header v2.1]
+                             Syntax: -nao <Payload_Path>
+--header-version -hv      : Signing header version, Possible values : 1  2  2.1  2.2  2.3
+                            Syntax: -hv <header_value>
+                            Default value: 1 for header v1 using 1 public key
+                            Default value: 2 for header v2 using 8 public keys
+--no-keys -nk             : Adding empty header without key options.
+                            Syntax: -nk 
+--align -align            : Align the payload to the 0x400 offset by adding padding bytes at the beginning of the payload.
+                            Syntax: -align 
+                            Note  : Applicable only with header v2.3 for MCUs (STM32N6).
+Additional PKCS#11 commands:
+
+--module          -m      : Specify a PKCS#11 module/Library path to load (dll, so, dylib)
+                             Syntax: -m <File_Path>
+--key-index       -ki     : List of used keys indexes in hex format.
+                            Use 1 index for Header v1 and 8 indexes for header v2
+                             Syntax: -ki <value>
+--slot-index      -si     : Specify the index of the slot to use (default 0)
+                             Syntax: -si <value>
+--slot-identifier -sid    : Specify the identifier of the slot to use (Optional, in decimal or hex format)
+                             Syntax: -sid <value>
+--active-keyIndex -aki    : Specify th actual active key index (default 0)
+                             Syntax: -aki <value>

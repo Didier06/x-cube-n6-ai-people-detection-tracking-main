@@ -1,0 +1,6 @@
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/app_cam.c:29:13:CAM_InitCropConfig	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/app_cam.c:84:6:CAM_Init	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/app_cam.c:102:6:CAM_DisplayPipe_Start	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/app_cam.c:110:6:CAM_NNPipe_Start	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/app_cam.c:118:6:CAM_IspUpdate	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/app_cam.c:126:6:CMW_CAMERA_PIPE_ErrorCallback	1

@@ -1,0 +1,10 @@
+../../../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc/stm32n6xx_ll_bus.h:679:22:LL_MEM_EnableClock	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:152:13:SystemClock_Config	4
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:301:13:main_thread_fct	3
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:63:5:main	4
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:145:6:IAC_IRQHandler	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:367:19:MX_DCMIPP_ClockConfig	2
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:390:6:npu_cache_enable_clocks_and_reset	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:398:6:npu_cache_disable_clocks_and_reset	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:414:6:assert_failed	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Src/main.c:426:45:app_clean_invalidate_dbg	3

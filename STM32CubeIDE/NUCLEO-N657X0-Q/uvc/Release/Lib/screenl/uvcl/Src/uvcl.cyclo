@@ -1,0 +1,11 @@
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:351:12:compare_streams	4
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:438:18:UVCL_StartNewFrameTransmission	6
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:467:6:UVCL_UpdateOnFlyCtx	2
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:488:6:UVCL_AbortOnFlyCtx	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:498:10:UVCL_ComputedwMaxVideoFrameSize	40
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:451:5:UVCL_handle_setup_request	9
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:548:6:UVCL_SetupStreamingStream	33
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:567:5:UVCL_Init	41
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:603:5:UVCL_Deinit	0
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:612:6:UVCL_IRQHandler	1
+C:/Doc_local/STMCUBE/x-cube-n6-ai-people-detection-tracking-main/Lib/screenl/uvcl/Src/uvcl.c:623:5:UVCL_ShowFrame	6
