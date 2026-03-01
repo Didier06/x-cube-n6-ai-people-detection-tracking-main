@@ -588,7 +588,7 @@ static void Display_NetworkOutput_NoTracking(display_info_t *info) {
   line_nb += 1;
   UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, "  %.2f", nn_fps);
   line_nb += 2;
-  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Objects %u", nb_rois);
+  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Person %u", nb_rois);
   line_nb += 1;
 #else
   (void)nn_fps;
@@ -614,7 +614,7 @@ static void Display_NetworkOutput_NoTracking(display_info_t *info) {
   line_nb += 1;
   UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, "   %ums", info->disp_ms);
   line_nb += 1;
-  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Objects %u", nb_rois);
+  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Person %u", nb_rois);
   line_nb += 1;
 #endif
 
@@ -769,7 +769,7 @@ static void Display_NetworkOutput_Tracking(display_info_t *info) {
   line_nb += 1;
   UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, "  %.2f", nn_fps);
   line_nb += 2;
-  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Objects %u",
+  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Person %u",
                       info->tboxes_valid_nb);
   line_nb += 1;
 #else
@@ -796,7 +796,7 @@ static void Display_NetworkOutput_Tracking(display_info_t *info) {
   line_nb += 1;
   UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, "   %ums", info->disp_ms);
   line_nb += 1;
-  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Objects %u",
+  UTIL_LCDEx_PrintfAt(0, LINE(line_nb), RIGHT_MODE, " Person %u",
                       info->tboxes_valid_nb);
   line_nb += 1;
 #endif
