@@ -19,6 +19,8 @@ WiFiMulti wifiMulti;
 const char *mqtt_broker = SECRET_MQTT_BROKER;
 const char *mqtt_topicPub = "FABLAB_21_22/nucleoN657/detect/out/";
 const char *mqtt_topicSub = "FABLAB_21_22/nucleoN657/detect/in/";
+const char *mqtt_topicCrossing =
+    "FABLAB_21_22/nucleoN657/crossing/"; // Nouveau : franchissements
 const char *mqtt_username = SECRET_MQTT_USER;
 const char *mqtt_password = SECRET_MQTT_PASS;
 const int mqtt_port = SECRET_MQTT_PORT;
@@ -84,13 +86,18 @@ void loop() {
     // On retire les espaces inutiles ou le caractère '\r'
     message.trim();
 
-    // Vérifie si le message texte contient "{ "person""
-    if (message.indexOf("{ \"person\"") >= 0) {
-      // On l'affiche sur le moniteur série du PC
-      Serial.println("Reçu de la Nucleo : " + message);
-      // On convertit le String 'message' au format attendu (const char*) avec
-      // c_str()
+    // --- Format 1 : comptage périodique de personnes + cumuls IN/OUT ---
+    // Ex : { "person": 2, "in": 5, "out": 3 }
+    if (message.indexOf("\"person\"") >= 0) {
+      Serial.println("Count reçu : " + message);
       mqtt_client.publish(mqtt_topicPub, message.c_str());
+    }
+
+    // --- Format 2 : événement instantané de franchissement de ligne ---
+    // Ex : { "event": "crossing", "dir": "IN", "id": 7, "in": 5, "out": 3 }
+    else if (message.indexOf("\"crossing\"") >= 0) {
+      Serial.println("Crossing reçu : " + message);
+      mqtt_client.publish(mqtt_topicCrossing, message.c_str());
     }
   }
 }

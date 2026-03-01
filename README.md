@@ -146,3 +146,91 @@ Send a JSON message to the inbound topic:
 | RX (commands ← ESP32)   | PE6 (USART1 RX) | GPIO 17 (TX2) |
 
 > **Note:** The ESP32 `TX2` pin (17) must be connected to the STM32 `USART1 RX` pin (PE6) to enable the downlink command path.
+
+---
+
+## 🚶 Line-Crossing People Counter (Bidirectional)
+
+This project implements a **real-time bidirectional people counting** feature based on an imaginary virtual line drawn across the video frame. Using the tracker's persistent IDs, the system detects each time a person crosses the line and increments either an **IN** or **OUT** counter depending on the direction of travel.
+
+> This feature requires `TRACKER_MODULE` to be enabled (defined at compile time).
+
+### How It Works
+
+A virtual line is defined at a configurable position across the screen (default: horizontal line at 50% of frame height). On every frame, each tracked person's smoothed centroid position is compared against this line. When the centroid crosses from one side to the other, the corresponding counter is incremented.
+
+An **anti-bounce guard** prevents multiple counts for the same crossing: the counter is only triggered once per actual traversal, and resets only when the person moves back to the original side.
+
+```
+         Camera Frame (320×240 for Nucleo N657X0-Q)
+┌─────────────────────────────────────┐
+│                                     │
+│  IN :  5   ◄── displayed above line │
+│─────────────────────────────────────│  ← yellow line at y=120px
+│  OUT:  3   ◄── displayed below line │
+│                                     │
+└─────────────────────────────────────┘
+
+  Person walking ↓ → increments IN
+  Person walking ↑ → increments OUT
+```
+
+### Configuration
+
+Both the position and orientation of the virtual line are defined as compile-time constants at the top of `Src/app.c`:
+
+```c
+#define LINE_CROSS_POS  0.50f   // Line position: 0.0 = top/left, 1.0 = bottom/right
+#define LINE_AXIS       0       // 0 = horizontal line, 1 = vertical line
+```
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `LINE_CROSS_POS` | `0.50f` | Line at 50% of frame (centre) |
+| `LINE_AXIS` | `0` | Horizontal line (crossing = vertical movement) |
+
+To move the line to the upper third of the screen, set `LINE_CROSS_POS 0.33f`. To use a vertical line instead (e.g. for a doorway viewed from above), set `LINE_AXIS 1`.
+
+### Visual Overlay on UVC Stream
+
+When tracking is active, the following elements are overlaid on the UVC video stream visible on the connected PC:
+
+- 🟡 **Yellow line** drawn across the frame at the configured position
+- **`IN : N`** counter displayed just above the line
+- **`OUT: N`** counter displayed just below the line
+- Each tracked bounding box retains its ID label and trajectory trail
+
+### MQTT Topics & Payload Format
+
+Two types of messages are published by the ESP32:
+
+#### 1. Periodic Count Message (on stable person count change)
+
+Published to: `FABLAB_21_22/nucleoN657/detect/out/`
+
+```json
+{ "person": 2, "in": 5, "out": 3 }
+```
+
+| Field | Description |
+|-------|-------------|
+| `person` | Number of people **currently visible** in the frame |
+| `in` | Cumulative count of crossings in the **IN direction** (since boot) |
+| `out` | Cumulative count of crossings in the **OUT direction** (since boot) |
+
+#### 2. Instant Crossing Event (fired at the moment of each crossing)
+
+Published to: `FABLAB_21_22/nucleoN657/crossing/`
+
+```json
+{ "event": "crossing", "dir": "IN", "id": 7, "in": 5, "out": 3 }
+```
+
+| Field | Description |
+|-------|-------------|
+| `event` | Always `"crossing"` |
+| `dir` | `"IN"` or `"OUT"` depending on crossing direction |
+| `id` | Tracker ID of the person who crossed the line |
+| `in` / `out` | Updated cumulative counters at time of crossing |
+
+> **Note:** Counters are reset to zero on board power cycle. They are not persisted to flash.

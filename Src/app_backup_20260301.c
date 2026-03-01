@@ -330,9 +330,6 @@ typedef struct {
 
 static trajectory_t trajectories[AI_OD_PP_MAX_BOXES_LIMIT];
 static int trajectory_frame_count = 0;
-
-/* Prototype anticipé (défini plus loin après tbox_to_tbox_info) */
-static void linecross_check(int traj_idx);
 #endif
 
 static int is_cache_enable() {
