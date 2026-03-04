@@ -39,7 +39,7 @@
 #include "task.h"
 
 UART_HandleTypeDef huart1;
-
+UART_HandleTypeDef huart2;
 static StaticTask_t main_thread;
 static StackType_t main_thread_stack[configMINIMAL_STACK_SIZE];
 
@@ -282,6 +282,33 @@ static void CONSOLE_Config()
   {
     while (1);
   }
+
+#ifdef STM32N6570_DK_REV
+  /* Arduino USART2 (PD5 / PF6) for ESP32 Connection */
+  __HAL_RCC_USART2_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+
+  gpio_init.Pin       = GPIO_PIN_5;
+  gpio_init.Alternate = GPIO_AF7_USART2;
+  HAL_GPIO_Init(GPIOD, &gpio_init);
+
+  gpio_init.Pin       = GPIO_PIN_6;
+  HAL_GPIO_Init(GPIOF, &gpio_init);
+
+  huart2.Instance          = USART2;
+  huart2.Init.BaudRate     = 115200;
+  huart2.Init.Mode         = UART_MODE_TX_RX;
+  huart2.Init.Parity       = UART_PARITY_NONE;
+  huart2.Init.WordLength   = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits     = UART_STOPBITS_1;
+  huart2.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_8;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    while (1);
+  }
+#endif
 }
 
 static int main_freertos()
@@ -318,6 +345,13 @@ static void main_thread_fct(void *arg)
   vPortSetupTimerInterrupt();
 
   CONSOLE_Config();
+
+#ifdef STM32N6570_DK_REV
+  /* Enable USART2 Interrupt for incoming ESP32 MQTT messages */
+  HAL_NVIC_SetPriority(USART2_IRQn, preemptPriority, subPriority);
+  HAL_NVIC_EnableIRQ(USART2_IRQn);
+#endif
+
 
   NPURam_enable();
   Fuse_Programming();

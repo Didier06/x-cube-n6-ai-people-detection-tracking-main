@@ -6,7 +6,7 @@ Out of the box, STM32CubeIDE projects for the N6 series are designed to run in a
 
 ---
 
-## ⚠️ The N6 Architecture challenge
+## The N6 Architecture challenge
 
 The STM32N6 (Cortex-M55, TrustZone/SAU) is devoid of internal application Flash. To run standalone, three critical files must be precisely flashed into the external memory:
 
@@ -21,7 +21,7 @@ Because the `.bin` output from STM32CubeIDE starts mathematically at byte `0`, f
 
 ---
 
-## 🛠️ The Solution: The `-align` Flag
+## The Solution: The `-align` Flag
 
 We bypassed this limitation using the undocumented `-align` flag natively available within the STM32 Signing Tool v2.20+ (Header V2.3 format).
 
@@ -62,7 +62,7 @@ The script automates these steps using `STM32_SigningTool_CLI` and `STM32_Progra
 
 ---
 
-## 🚀 Running the System
+## Running the System
 
 1. Double-click the `Flash_Nucleo_Tracking.bat`.
 2. Wait for completion (Loading the AI network weights takes ~60-90 seconds).
@@ -73,7 +73,7 @@ The script automates these steps using `STM32_SigningTool_CLI` and `STM32_Progra
 
 ---
 
-## 📡 Wi-Fi & MQTT Integration (ESP32)
+## Wi-Fi & MQTT Integration (ESP32)
 
 To enable wireless communication and send the AI detection data (e.g., number of tracked people) over Wi-Fi, this project supports integration with an external ESP32 module.
 
@@ -90,7 +90,7 @@ The Arduino code for the ESP32 is included in the `ESP32_N657X0_Q` folder. It fe
 
 ---
 
-## 📷 Remote UVC Webcam Control via MQTT
+## Remote UVC Webcam Control via MQTT
 
 This project supports **remotely enabling or disabling the UVC webcam stream** over MQTT, which is useful when no PC is available to view the video feed and you want to **save energy**.
 
@@ -149,7 +149,7 @@ Send a JSON message to the inbound topic:
 
 ---
 
-## 🚶 Line-Crossing People Counter (Bidirectional)
+## Line-Crossing People Counter (Bidirectional)
 
 This project implements a **real-time bidirectional people counting** feature based on an imaginary virtual line drawn across the video frame. Using the tracker's persistent IDs, the system detects each time a person crosses the line and increments either an **IN** or **OUT** counter depending on the direction of travel.
 
@@ -195,7 +195,7 @@ To move the line to the upper third of the screen, set `LINE_CROSS_POS 0.33f`. T
 
 When tracking is active, the following elements are overlaid on the UVC video stream visible on the connected PC:
 
-- 🟡 **Yellow line** drawn across the frame at the configured position
+- **Yellow line** drawn across the frame at the configured position
 - **`IN : N`** counter displayed just above the line
 - **`OUT: N`** counter displayed just below the line
 - Each tracked bounding box retains its ID label and trajectory trail
@@ -234,3 +234,63 @@ Published to: `FABLAB_21_22/nucleoN657/crossing/`
 | `in` / `out` | Updated cumulative counters at time of crossing |
 
 > **Note:** Counters are reset to zero on board power cycle. They are not persisted to flash.
+
+---
+
+## STM32N6570-DK — Discovery Kit Support
+
+This project also supports the **STM32N6570-DK Discovery Kit**, which features an onboard LCD display (800×480), a built-in camera connector, and a Cortex-M55 running at 800 MHz.
+
+![STM32N6570-DK and NUCLEO-N657X0-Q boards](images/N657_D-K__X0-Q.jpg)
+
+### Key Differences vs. NUCLEO-N657X0-Q
+
+| Feature | NUCLEO-N657X0-Q | STM32N6570-DK |
+|---------|-----------------|---------------|
+| Display | None (UVC via USB) | Onboard LCD 800×480 (LTDC) |
+| AI Model | YoloV8-UI (2 classes) | ST-YoloX (2 classes) |
+| Build target | `STM32CubeIDE/NUCLEO-N657X0-Q/` | `STM32CubeIDE/STM32N6570-DK/` |
+| UART console | USART1 (PE5/PE6) | USART1 (PE5/PE6) via ST-LINK VCP |
+| ESP32 headers | Arduino CN6 — USART1 | Arduino CN13 — USART2 (PD5/PF6) |
+| Confidence threshold | `AI_OD_YOLOV8_PP_CONF_THRESHOLD 0.6` | `AI_OD_ST_YOLOX_PP_CONF_THRESHOLD 0.5` |
+
+### Detection — Persons Only
+
+The ST-YoloX model used on the DK detects two classes: `person` (index 0) and `not_person` (index 1). The firmware is configured to **filter out all non-person detections** at post-processing level so that:
+
+- Only persons are tracked and displayed on the LCD
+- Only person counts and line-crossing events are sent over UART to the ESP32
+- Non-person objects (bottles, chairs, etc.) are completely ignored
+
+This filter is applied in `Src/app.c` by checking `class_index == 0` before passing detections to the tracker and display pipeline.
+
+### ESP32 Wiring (DK Arduino Headers — CN13)
+
+| Signal | STM32N6570-DK Pin | ESP32 Pin |
+|--------|-------------------|-----------|
+| GND | GND | GND |
+| TX (detections → ESP32) | **D1 — USART2 TX (PD5)** | GPIO 16 (RX2) |
+| RX (commands ← ESP32) | **D0 — USART2 RX (PF6)** | GPIO 17 (TX2) |
+
+> ⚠️ Note the **crossover**: STM32 TX → ESP32 RX, and STM32 RX ← ESP32 TX.
+
+### Flashing the DK
+
+**Step 1 — Sign the binary:**
+
+```bat
+"C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_SigningTool_CLI.exe" ^
+  -bin "STM32CubeIDE\STM32N6570-DK\Debug\x-cube-n6-ai-people-detection-tracking-dk.bin" ^
+  -nk -t ssbl -hv 2.3 -align ^
+  -o "STM32CubeIDE\STM32N6570-DK\Debug\N6_Aligned_Signed.bin"
+```
+
+**Step 2 — Flash in STM32CubeProgrammer** (HOTPLUG or Under Reset, External Loader: `MX25UM51245G_STM32N6570-DK`):
+
+| Order | File | Address |
+|:-----:|------|---------|
+| 1 | `FSBL/ai_fsbl.hex` | Automatic (`0x70000000`) |
+| 2 | `network_data.hex` (AI weights) | Automatic — **Skip Erase** |
+| 3 | `N6_Aligned_Signed.bin` | **`0x70100000`** — **Skip Erase** |
+
+After reset with boot jumper set to **Boot from Flash**, the DK will display the live camera feed on its LCD with person detection overlays, IN/OUT line-crossing counters, and will stream JSON events to the ESP32 over USART2.

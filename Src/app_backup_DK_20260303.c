@@ -51,9 +51,6 @@
 #endif
 
 extern UART_HandleTypeDef huart1;
-#ifdef STM32N6570_DK_REV
-extern UART_HandleTypeDef huart2;
-#endif
 uint8_t uart_rx_buf;
 char mqtt_payload[128];
 int mqtt_payload_idx = 0;
@@ -62,16 +59,9 @@ volatile int headless_mode_active =
     0; // Mettre à 0 via MQTT pour économiser de l'énergie (Webcam OFF).
 
 void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&huart1); }
-#ifdef STM32N6570_DK_REV
-void USART2_IRQHandler(void) { HAL_UART_IRQHandler(&huart2); }
-#endif
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  if (huart->Instance == USART1
-#ifdef STM32N6570_DK_REV
-      || huart->Instance == USART2
-#endif
-  ) {
+  if (huart->Instance == USART1) {
     if (uart_rx_buf == '\n' || uart_rx_buf == '\r') {
       mqtt_payload[mqtt_payload_idx] = '\0';
       if (strstr(mqtt_payload, "\"webcam\":0")) {
@@ -85,7 +75,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
         mqtt_payload[mqtt_payload_idx++] = uart_rx_buf;
       }
     }
-    HAL_UART_Receive_IT(huart, &uart_rx_buf, 1);
+    HAL_UART_Receive_IT(&huart1, &uart_rx_buf, 1);
   }
 }
 
@@ -546,9 +536,6 @@ static void convert_point(float32_t xi, float32_t yi, int *xo, int *yo) {
 }
 
 static void Display_Detection(od_pp_outBuffer_t *detect) {
-  if (detect->class_index != 0)
-    return; /* Only draw "person" */
-
   int xc, yc;
   int x0, y0;
   int x1, y1;
@@ -631,20 +618,9 @@ static void Display_NetworkOutput_NoTracking(display_info_t *info) {
   line_nb += 1;
 #endif
 
-  /* Draw bounding boxes and map index for display only */
-  int valid_rois = 0;
-  for (i = 0; i < nb_rois; i++) {
-    if (rois[i].class_index == 0) {
-      Display_Detection(&rois[i]);
-      valid_rois++;
-    }
-  }
-
-  /* Override the text drawn with the real valid count of persons */
-  UTIL_LCD_FillRect(0, LINE(line_nb - 1), 100, 20,
-                    0x00000000); // Clear the number spot roughly
-  UTIL_LCDEx_PrintfAt(0, LINE(line_nb - 1), RIGHT_MODE, " Person %u",
-                      valid_rois);
+  /* Draw bounding boxes */
+  for (i = 0; i < nb_rois; i++)
+    Display_Detection(&rois[i]);
 }
 
 #ifdef TRACKER_MODULE
@@ -993,19 +969,15 @@ static void roi_to_dbox(od_pp_outBuffer_t *roi, trk_dbox_t *dbox) {
 static int app_tracking(od_pp_out_t *pp) {
   int tracking_enabled = update_and_capture_tracking_enabled();
   int ret;
-  int i, valid_boxes = 0;
+  int i;
 
   if (!tracking_enabled)
     return 0;
 
-  for (i = 0; i < pp->nb_detect; i++) {
-    if (pp->pOutBuff[i].class_index == 0) {
-      roi_to_dbox(&pp->pOutBuff[i], &dboxes[valid_boxes]);
-      valid_boxes++;
-    }
-  }
+  for (i = 0; i < pp->nb_detect; i++)
+    roi_to_dbox(&pp->pOutBuff[i], &dboxes[i]);
 
-  ret = trk_update(&trk_ctx, valid_boxes, dboxes);
+  ret = trk_update(&trk_ctx, pp->nb_detect, dboxes);
   assert(ret == 0);
 
   return 1;
@@ -1053,16 +1025,10 @@ static void linecross_check(int traj_idx) {
         line_count_out++; /* direction OUT : après->avant */
       }
       t->crossed_line = 1;
-      char dbg_msg[128];
-      int dlen = snprintf(
-          dbg_msg, sizeof(dbg_msg),
-          "{ \"event\": \"crossing\", \"dir\": \"%s\", \"id\": %d, \"in\": "
-          "%d, \"out\": %d }\r\n",
-          (side_now == 1) ? "IN" : "OUT", t->id, line_count_in, line_count_out);
-      printf("%s", dbg_msg);
-#ifdef STM32N6570_DK_REV
-      HAL_UART_Transmit(&huart2, (uint8_t *)dbg_msg, dlen, 100);
-#endif
+      printf("{ \"event\": \"crossing\", \"dir\": \"%s\", \"id\": %d, \"in\": "
+             "%d, \"out\": %d }\r\n",
+             (side_now == 1) ? "IN" : "OUT", t->id, line_count_in,
+             line_count_out);
     }
   } else {
     /* Même côté : reset du drapeau pour autoriser le prochain franchissement */
@@ -1121,16 +1087,9 @@ static void pp_thread_fct(void *arg) {
     /* update display stats and detection info */
     ret = xSemaphoreTake(disp.lock, portMAX_DELAY);
     assert(ret == pdTRUE);
-
-    int valid_rois = 0;
-    for (i = 0; i < pp_output.nb_detect; i++) {
-      if (pp_output.pOutBuff[i].class_index == 0) {
-        disp.info.detects[valid_rois] = pp_output.pOutBuff[i];
-        valid_rois++;
-      }
-    }
-    disp.info.nb_detect = valid_rois;
-
+    disp.info.nb_detect = pp_output.nb_detect;
+    for (i = 0; i < pp_output.nb_detect; i++)
+      disp.info.detects[i] = pp_output.pOutBuff[i];
 #ifdef TRACKER_MODULE
     disp.info.tracking_enabled = tracking_enabled;
     disp.info.tboxes_valid_nb = 0;
@@ -1174,14 +1133,8 @@ static void pp_thread_fct(void *arg) {
     /* On envoie uniquement si la valeur stable a changé depuis le dernier envoi
      */
     if (current_stable_count != last_sent_count) {
-      char dbg_msg[64];
-      int dlen = snprintf(dbg_msg, sizeof(dbg_msg),
-                          "{ \"person\": %d, \"in\": %d, \"out\": %d }\r\n",
-                          current_stable_count, line_count_in, line_count_out);
-      printf("%s", dbg_msg);
-#ifdef STM32N6570_DK_REV
-      HAL_UART_Transmit(&huart2, (uint8_t *)dbg_msg, dlen, 100);
-#endif
+      printf("{ \"person\": %d, \"in\": %d, \"out\": %d }\r\n",
+             current_stable_count, line_count_in, line_count_out);
       last_sent_count = current_stable_count;
     }
     /* ---------------------------------------------------- */
@@ -1337,9 +1290,6 @@ void app_run() {
   HAL_NVIC_SetPriority(USART1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(USART1_IRQn);
   HAL_UART_Receive_IT(&huart1, &uart_rx_buf, 1);
-#ifdef STM32N6570_DK_REV
-  HAL_UART_Receive_IT(&huart2, &uart_rx_buf, 1);
-#endif
 
   /* create buffer queues */
   ret = bqueue_init(&nn_input_queue, 2,

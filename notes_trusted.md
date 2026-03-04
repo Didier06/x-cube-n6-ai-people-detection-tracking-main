@@ -47,9 +47,12 @@ Le fichier brut (`.bin`) sortant de STM32CubeIDE ne contient pas cet espace vide
 Idéal pour automatiser le processus ou le placer dans le *Post-build steps* de STM32CubeIDE.
 C'est la méthode la plus sûre car l'argument `-align` fait tout le travail.
 
-```bat
+```bat , pour N657X0-Q
 "C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_SigningTool_CLI.exe" -bin "C:\Doc_local\STMCUBE\x-cube-n6-ai-people-detection-tracking-main\STM32CubeIDE\NUCLEO-N657X0-Q\uvc\Release\x-cube-n6-ai-people-detection-tracking-uvc-nucleo.bin" -nk -t ssbl -hv 2.3 -align -o "C:\Doc_local\STMCUBE\x-cube-n6-ai-people-detection-tracking-main\STM32CubeIDE\NUCLEO-N657X0-Q\uvc\Release\N6_Aligned_Signed.bin"
 ```
+
+pour N6570DK :
+"C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_SigningTool_CLI.exe" -bin "C:\Doc_local\STMCUBE\x-cube-n6-ai-people-detection-tracking-main\STM32CubeIDE\STM32N6570-DK\Debug\x-cube-n6-ai-people-detection-tracking-dk.bin" -nk -t ssbl -hv 2.3 -align -o "C:\Doc_local\STMCUBE\x-cube-n6-ai-people-detection-tracking-main\STM32CubeIDE\STM32N6570-DK\Debug\N6_Aligned_Signed.bin"
 
 ## 4. Flasher la carte (Procédure de Secours Complète)
 
