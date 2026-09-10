@@ -55,7 +55,7 @@ void setup() {
   mqtt_client.setCallback(mqttCallback);
   connectToMQTT();
   mqtt_client.publish(mqtt_topicPub,
-                      "Hi I'm ESP32 connected to Nucleo N657 !! ");
+                      "{ \"status\": \"online\" }");
   // 2. Démarrage du Serial2 pour écouter la STM32 Nucleo
   // Paramètres : Vitesse, Mode, RX Pin, TX Pin
   Serial2.begin(115200, SERIAL_8N1, RX2_PIN, TX2_PIN);

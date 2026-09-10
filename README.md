@@ -200,6 +200,7 @@ When tracking is active, the following elements are overlaid on the UVC video st
 - **`OUT: N`** counter displayed just below the line
 - Each tracked bounding box retains its ID label and trajectory trail
 
+
 ### MQTT Topics & Payload Format
 
 Two types of messages are published by the ESP32:
@@ -234,6 +235,40 @@ Published to: `FABLAB_21_22/nucleoN657/crossing/`
 | `in` / `out` | Updated cumulative counters at time of crossing |
 
 > **Note:** Counters are reset to zero on board power cycle. They are not persisted to flash.
+
+---
+
+## Web Dashboard & Remote Counter Reset (MQTT)
+
+This project includes a responsive web dashboard located in the [`ESP32_N657X0_Q/`](ESP32_N657X0_Q/) directory. It provides real-time visualization of active camera presence, line-crossing counters, historical metrics, and live event logging.
+
+<p align="center">
+  <img src="images/camera_stream.jpg" width="350" alt="Live Camera Stream Overlay">&nbsp;&nbsp;
+  <img src="images/web_dashboard.png" width="350" alt="Web Dashboard Preview">
+</p>
+
+### Automatic MQTT Connection
+
+Upon opening `index.html` in any web browser, the application **automatically connects** to the MQTT WebSocket broker on load using default credentials:
+
+- **Broker Host:** `mqtt.webprofs.fr`
+- **WebSocket Port:** `9001` (`wss://` SSL/TLS enabled)
+- **Credentials:** Username `fablab2122` / Password `2122`
+- **Subscribed Topic:** `FABLAB_21_22/#` (monitors count updates `detect/out/` and events `crossing/`)
+
+### Remote Counter Reset Feature
+
+The header bar of the web interface features a **"Reset Compteurs"** button. Clicking this button opens a single confirmation window. Upon validation, it publishes a JSON payload to topic `FABLAB_21_22/nucleoN657/detect/in/`:
+
+```json
+{ "cmd": "reset", "reset": 1, "in": 0, "out": 0 }
+```
+
+### Firmware Reset Execution Flow
+
+1. **ESP32 Reception & UART Forwarding:** The ESP32 receives the reset topic and forwards the JSON string over UART (`Serial2` at 115200 bps).
+2. **STM32 N6 Processing:** The firmware receives the payload in `HAL_UART_RxCpltCallback()` in [`Src/app.c`](Src/app.c). It parses the `"reset"` command and dynamically updates `line_count_in` and `line_count_out` (supporting zero or custom reset values).
+3. **Instant Feedback:** The STM32 N6 immediately transmits an updated count payload `{ "person": 0, "in": X, "out": Y }` back over UART, triggering the ESP32 to republish to MQTT and instantly refresh the web UI.
 
 ---
 

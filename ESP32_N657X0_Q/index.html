@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Station de Détection & Comptage WebProfs - STM32 N657 & ESP32</title>
+
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Chart.js & MQTT.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Header / Branding Bar -->
+  <header class="main-header py-3 px-4">
+    <div class="container-fluid d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
+      
+      <!-- Brand & Location -->
+      <div class="d-flex align-items-center gap-3">
+        <div class="brand-icon shadow-sm">
+          <i class="fa-solid fa-users-viewfinder"></i>
+        </div>
+        <div>
+          <h1 class="brand-title m-0">Station de Détection & Comptage IA</h1>
+          <div class="brand-subtitle d-flex align-items-center gap-2">
+            <span><i class="fa-solid fa-location-dot text-danger"></i> CONTES <small class="opacity-75">(Alpes-Maritimes)</small></span>
+            <span class="badge-tech">STM32 N6570 + ESP32</span>
+            <a href="https://www.google.com/maps/place/43%C2%B048'22.3%22N+7%C2%B018'20.7%22E/@43.8061938,7.3057522,17z" target="_blank" class="map-link text-decoration-none" title="Voir sur Google Maps">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Clock & Status Bar -->
+      <div class="d-flex align-items-center gap-3 flex-wrap justify-content-end">
+        <div class="clock-badge shadow-sm">
+          <i class="fa-regular fa-clock me-1 text-primary"></i>
+          <span id="liveClock">--:--:--</span>
+          <span class="text-muted ms-1" id="liveDate">--/--/----</span>
+        </div>
+
+        <div id="mqttStatusBadge" class="status-badge status-connecting shadow-sm">
+          <span class="pulse-dot"></span>
+          <span id="mqttStatusText">Connexion...</span>
+        </div>
+
+        <button id="btnSoundToggle" class="btn btn-outline-light btn-sm shadow-sm rounded-pill" title="Activer/Désactiver le bip sonore">
+          <i class="fa-solid fa-volume-high me-1"></i> Son: <span id="soundStatusText">ON</span>
+        </button>
+
+        <button id="btnResetMqttCounters" class="btn btn-outline-warning btn-sm shadow-sm rounded-pill font-weight-bold" title="Envoyer un Reset des compteurs à la carte Nucleo N657 via MQTT">
+          <i class="fa-solid fa-rotate-left me-1"></i> Reset Compteurs
+        </button>
+
+        <a href="https://webprofs.fr" target="_blank" class="logo-webprofs-container ms-1">
+          <span class="fw-bold text-white fs-5">Web<span class="text-info">profs</span>.fr</span>
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-container px-4">
+    <div class="container-fluid">
+      <ul class="nav nav-tabs border-0" id="mainTab" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard-pane" type="button" role="tab">
+            <i class="fa-solid fa-chart-pie me-2"></i>Tableau de bord
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="charts-tab" data-bs-toggle="tab" data-bs-target="#charts-pane" type="button" role="tab">
+            <i class="fa-solid fa-chart-line me-2"></i>Graphiques & Analytics
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-pane" type="button" role="tab">
+            <i class="fa-solid fa-list-check me-2"></i>Journal des franchissements
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button" role="tab">
+            <i class="fa-solid fa-sliders me-2"></i>Réglages MQTT
+          </button>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="content-container p-4">
+    <div class="container-fluid">
+      <div class="tab-content" id="mainTabContent">
+        
+        <!-- ================= TAB 1: TABLEAU DE BORD ================= -->
+        <div class="tab-pane fade show active" id="dashboard-pane" role="tabpanel">
+          
+          <!-- Banner Alert for Last Crossing Event -->
+          <div id="lastEventBanner" class="alert alert-event-banner shadow-sm d-none align-items-center justify-content-between mb-4">
+            <div class="d-flex align-items-center gap-3">
+              <div id="bannerIconContainer" class="banner-icon-circle bg-success text-white">
+                <i class="fa-solid fa-arrow-right-to-bracket fs-4"></i>
+              </div>
+              <div>
+                <h5 class="m-0 fw-bold" id="bannerTitle">Franchissement Détecté !</h5>
+                <p class="m-0 text-muted small" id="bannerDetail">Direction: IN | ID Détection: #1 | Horodatage: 16:30:00</p>
+              </div>
+            </div>
+            <span class="badge bg-dark rounded-pill px-3 py-2 fs-6" id="bannerTimeAgo">À l'instant</span>
+          </div>
+
+          <!-- KPI Cards Row -->
+          <div class="row g-3 mb-4">
+            
+            <!-- Person Instant Detection Card -->
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="kpi-card shadow-sm h-100 border-start border-4 border-primary">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="kpi-title">Personnes en Caméra</span>
+                  <div class="kpi-icon-wrap bg-primary-subtle text-primary">
+                    <i class="fa-solid fa-user-group"></i>
+                  </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                  <span class="kpi-value" id="kpiPresence">0</span>
+                  <span class="kpi-unit">personne(s)</span>
+                </div>
+                <div class="mt-2 d-flex align-items-center justify-content-between">
+                  <span class="badge bg-info-subtle text-info border border-info-subtle" id="badgePresenceState">
+                    <i class="fa-solid fa-eye me-1"></i> Flux vidéo actif
+                  </span>
+                  <small class="text-muted" id="kpiPresenceTime">Mis à jour: --:--</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total IN Crossings Card -->
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="kpi-card shadow-sm h-100 border-start border-4 border-success">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="kpi-title">Franchissements ENTRÉE</span>
+                  <div class="kpi-icon-wrap bg-success-subtle text-success">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                  </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                  <span class="kpi-value text-success" id="kpiIn">0</span>
+                  <span class="kpi-unit">passages</span>
+                </div>
+                <div class="mt-2 d-flex align-items-center justify-content-between">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    <i class="fa-solid fa-arrow-up-right-dots me-1"></i> Sens Ligne A&rarr;B
+                  </span>
+                  <small class="text-muted">Total Cumulé</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total OUT Crossings Card -->
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="kpi-card shadow-sm h-100 border-start border-4 border-danger">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="kpi-title">Franchissements SORTIE</span>
+                  <div class="kpi-icon-wrap bg-danger-subtle text-danger">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                  </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                  <span class="kpi-value text-danger" id="kpiOut">0</span>
+                  <span class="kpi-unit">passages</span>
+                </div>
+                <div class="mt-2 d-flex align-items-center justify-content-between">
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    <i class="fa-solid fa-arrow-down-left-dots me-1"></i> Sens Ligne B&rarr;A
+                  </span>
+                  <small class="text-muted">Total Cumulé</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Net Occupation / Balance Card -->
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="kpi-card shadow-sm h-100 border-start border-4 border-purple">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="kpi-title">Occupation Estimée (Solde)</span>
+                  <div class="kpi-icon-wrap bg-purple-subtle text-purple">
+                    <i class="fa-solid fa-building-user"></i>
+                  </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-2">
+                  <span class="kpi-value text-purple" id="kpiNet">0</span>
+                  <span class="kpi-unit">dans la zone</span>
+                </div>
+                <div class="mt-2 d-flex align-items-center justify-content-between">
+                  <span class="badge bg-purple-subtle text-purple border border-purple-subtle" id="kpiNetBadge">
+                    Solde Neutre
+                  </span>
+                  <small class="text-muted">Calcul (IN - OUT)</small>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Middle Dashboard Section: Live Feed & Capacity Gauge -->
+          <div class="row g-4">
+            
+            <!-- Live Feed List -->
+            <div class="col-12 col-lg-7 col-xl-8">
+              <div class="card shadow-sm border-0 custom-card h-100">
+                <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3">
+                  <h5 class="card-title m-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-bolt text-warning"></i> Flux des Événements en Direct
+                  </h5>
+                  <span class="badge bg-dark rounded-pill" id="eventCounterBadge">0 événement(s)</span>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive" style="max-height: 340px;">
+                    <table class="table table-hover align-middle mb-0 custom-table">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Heure</th>
+                          <th>Événement</th>
+                          <th>Direction</th>
+                          <th>ID Suivi</th>
+                          <th>Total In</th>
+                          <th>Total Out</th>
+                        </tr>
+                      </thead>
+                      <tbody id="liveEventsTableBody">
+                        <tr id="emptyEventsRow">
+                          <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="fa-regular fa-bell-slash fs-3 d-block mb-2 opacity-50"></i>
+                            Aucun événement de franchissement enregistré pour l'instant...
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Capacity Gauge & Quick Stats -->
+            <div class="col-12 col-lg-5 col-xl-4">
+              <div class="card shadow-sm border-0 custom-card h-100">
+                <div class="card-header bg-transparent border-0 py-3">
+                  <h5 class="card-title m-0 fw-bold d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-gauge-high text-primary"></i> Niveau d'Occupation
+                  </h5>
+                </div>
+                <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-4">
+                  
+                  <!-- Circular Gauge Container -->
+                  <div class="gauge-container position-relative mb-3">
+                    <canvas id="gaugeCanvas" width="200" height="200"></canvas>
+                    <div class="gauge-overlay">
+                      <span class="fs-2 fw-extrabold" id="gaugePercentage">0%</span>
+                      <small class="text-muted d-block" id="gaugeSubtext">0 / 20 personnes</small>
+                    </div>
+                  </div>
+
+                  <div class="w-100 mt-2">
+                    <div class="d-flex justify-content-between small text-muted mb-1">
+                      <span>Capacité d'alerte conseillée</span>
+                      <span id="capacityThresholdText">20 personnes</span>
+                    </div>
+                    <div class="progress progress-custom" style="height: 10px;">
+                      <div id="capacityProgressBar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 pt-3 border-top w-100 d-flex justify-content-around text-start">
+                    <div>
+                      <small class="text-muted d-block">Ligne de Détection</small>
+                      <span class="fw-bold text-dark"><i class="fa-solid fa-ruler-combined text-primary me-1"></i> Actives</span>
+                    </div>
+                    <div>
+                      <small class="text-muted d-block">Dernier passage</small>
+                      <span class="fw-bold text-dark" id="lastPassageTime">--:--:--</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ================= TAB 2: GRAPHIQUES ================= -->
+        <div class="tab-pane fade" id="charts-pane" role="tabpanel">
+          <div class="row g-4">
+            
+            <!-- Real-time Presence Chart -->
+            <div class="col-12 col-xl-8">
+              <div class="card shadow-sm border-0 custom-card">
+                <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between py-3">
+                  <h5 class="card-title m-0 fw-bold">
+                    <i class="fa-solid fa-chart-line text-primary me-2"></i>Évolution de la Présence (Temps Réel)
+                  </h5>
+                  <button id="btnClearChart" class="btn btn-sm btn-outline-secondary rounded-pill">
+                    <i class="fa-solid fa-rotate-left me-1"></i>Réinitialiser
+                  </button>
+                </div>
+                <div class="card-body">
+                  <div style="height: 320px; position: relative;">
+                    <canvas id="realtimeLineChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- In vs Out Comparison Chart -->
+            <div class="col-12 col-xl-4">
+              <div class="card shadow-sm border-0 custom-card">
+                <div class="card-header bg-transparent border-0 py-3">
+                  <h5 class="card-title m-0 fw-bold">
+                    <i class="fa-solid fa-chart-pie text-success me-2"></i>Ratio Entrées vs Sorties
+                  </h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                  <div style="height: 320px; width: 100%; position: relative;">
+                    <canvas id="ratioDoughnutChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hourly Flow Bar Chart -->
+            <div class="col-12">
+              <div class="card shadow-sm border-0 custom-card">
+                <div class="card-header bg-transparent border-0 py-3">
+                  <h5 class="card-title m-0 fw-bold">
+                    <i class="fa-solid fa-chart-column text-info me-2"></i>Histogramme des Flux Horaires
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <div style="height: 280px; position: relative;">
+                    <canvas id="hourlyBarChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ================= TAB 3: HISTORIQUE / JOURNAL ================= -->
+        <div class="tab-pane fade" id="history-pane" role="tabpanel">
+          <div class="card shadow-sm border-0 custom-card">
+            <div class="card-header bg-transparent border-0 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 py-3">
+              <h5 class="card-title m-0 fw-bold">
+                <i class="fa-solid fa-table-list text-primary me-2"></i>Historique Complet des Franchissements
+              </h5>
+              
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="input-group input-group-sm" style="max-width: 250px;">
+                  <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+                  <input type="text" id="historySearchInput" class="form-control" placeholder="Filtrer (IN, OUT, ID...)">
+                </div>
+
+                <button id="btnExportCsv" class="btn btn-sm btn-outline-success rounded-pill">
+                  <i class="fa-solid fa-file-csv me-1"></i>Exporter CSV
+                </button>
+
+                <button id="btnClearHistory" class="btn btn-sm btn-outline-danger rounded-pill">
+                  <i class="fa-solid fa-trash-can me-1"></i>Effacer
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive" style="max-height: 500px;">
+                <table class="table table-hover align-middle mb-0 custom-table">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>#</th>
+                      <th>Horodatage</th>
+                      <th>Événement</th>
+                      <th>Direction</th>
+                      <th>ID Objet</th>
+                      <th>Compteur IN</th>
+                      <th>Compteur OUT</th>
+                      <th>Solde Zone</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fullHistoryTableBody">
+                    <tr>
+                      <td colspan="8" class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-inbox fs-2 d-block mb-2 opacity-50"></i>
+                        Aucune donnée enregistrée dans l'historique.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TAB 4: REGLAGES MQTT ================= -->
+        <div class="tab-pane fade" id="settings-pane" role="tabpanel">
+          <div class="row justify-content-center">
+            <div class="col-12 col-lg-8 col-xl-7">
+              <div class="card shadow-sm border-0 custom-card">
+                <div class="card-header bg-transparent border-0 py-3">
+                  <h5 class="card-title m-0 fw-bold">
+                    <i class="fa-solid fa-sliders text-primary me-2"></i>Paramètres de Connexion MQTT & Seuils
+                  </h5>
+                </div>
+                <div class="card-body">
+                  
+                  <form id="mqttSettingsForm">
+                    
+                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-network-wired me-2"></i>Serveur Broker (WebSockets)</h6>
+                    
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-md-8">
+                        <label class="form-label small fw-bold">Hôte du Broker</label>
+                        <input type="text" id="cfgBrokerHost" class="form-control" value="mqtt.webprofs.fr">
+                      </div>
+                      <div class="col-6 col-md-4">
+                        <label class="form-label small fw-bold">Port WebSocket</label>
+                        <input type="number" id="cfgBrokerPort" class="form-control" value="9001" placeholder="9001 / 8084 / 443">
+                      </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-md-8">
+                        <label class="form-label small fw-bold">Chemin / Path WS</label>
+                        <input type="text" id="cfgBrokerPath" class="form-control" value="/mqtt" placeholder="/mqtt ou /">
+                      </div>
+                      <div class="col-12 col-md-4 d-flex align-items-end">
+                        <div class="form-check form-switch mb-2">
+                          <input class="form-check-input" type="checkbox" id="cfgUseSSL" checked>
+                          <label class="form-check-label fw-bold small" for="cfgUseSSL">Utiliser SSL / TLS (wss://)</label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-key me-2"></i>Authentification & Identifiants</h6>
+
+                    <div class="row g-3 mb-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label small fw-bold">Nom d'utilisateur</label>
+                        <input type="text" id="cfgBrokerUser" class="form-control" value="fablab2122">
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label small fw-bold">Mot de passe</label>
+                        <input type="password" id="cfgBrokerPass" class="form-control" value="2122">
+                      </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-bullhorn me-2"></i>Topics d'Abonnement MQTT</h6>
+
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold">Topic Principal (Wildcard ou Générique)</label>
+                      <input type="text" id="cfgTopicSub" class="form-control" value="FABLAB_21_22/#">
+                      <div class="form-text">Écoute automatiquement <code>FABLAB_21_22/nucleoN657/detect/out/</code> et <code>FABLAB_21_22/nucleoN657/crossing/</code></div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-bell me-2"></i>Seuils d'Alerte et Capacités</h6>
+
+                    <div class="row g-3 mb-4">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label small fw-bold">Capacité Maximale Recommandée</label>
+                        <input type="number" id="cfgMaxCapacity" class="form-control" value="20" min="1" max="500">
+                      </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                      <button type="button" id="btnResetConfig" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-rotate me-1"></i>Valeurs par défaut
+                      </button>
+                      
+                      <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
+                        <i class="fa-solid fa-plug me-2"></i>Enregistrer & Se Reconnecter
+                      </button>
+                    </div>
+
+                  </form>
+
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer py-3 text-center text-muted border-top bg-white">
+    <div class="container-fluid">
+      <small>Station de Détection & Comptage de Personnes STM32 N6570 / ESP32 &copy; 2026 WebProfs.fr | Fait pour l'enseignement et le Fablab</small>
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- App Custom Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>

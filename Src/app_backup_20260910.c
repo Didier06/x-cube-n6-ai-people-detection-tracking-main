@@ -19,7 +19,6 @@
 #include "app.h"
 
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "app_cam.h"
@@ -62,11 +61,6 @@ int mqtt_payload_idx = 0;
 volatile int headless_mode_active =
     0; // Mettre à 0 via MQTT pour économiser de l'énergie (Webcam OFF).
 
-static volatile int line_count_in =
-    0; /* Franchissements vers le bas  (ou droite) */
-static volatile int line_count_out =
-    0; /* Franchissements vers le haut (ou gauche) */
-
 void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&huart1); }
 #ifdef STM32N6570_DK_REV
 void USART2_IRQHandler(void) { HAL_UART_IRQHandler(&huart2); }
@@ -79,30 +73,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 #endif
   ) {
     if (uart_rx_buf == '\n' || uart_rx_buf == '\r') {
-      if (mqtt_payload_idx > 0) {
-        mqtt_payload[mqtt_payload_idx] = '\0';
-        if (strstr(mqtt_payload, "\"webcam\":0")) {
-          headless_mode_active = 1;
-        } else if (strstr(mqtt_payload, "\"webcam\":1")) {
-          headless_mode_active = 0;
-        } else if (strstr(mqtt_payload, "\"reset\"") != NULL || strstr(mqtt_payload, "\"cmd\":\"reset\"") != NULL) {
-          char *p_in = strstr(mqtt_payload, "\"in\":");
-          char *p_out = strstr(mqtt_payload, "\"out\":");
-          line_count_in = (p_in != NULL) ? atoi(p_in + 5) : 0;
-          line_count_out = (p_out != NULL) ? atoi(p_out + 6) : 0;
-
-          char dbg_msg[64];
-          int dlen = snprintf(dbg_msg, sizeof(dbg_msg),
-                              "{ \"person\": 0, \"in\": %d, \"out\": %d }\r\n",
-                              line_count_in, line_count_out);
-#ifdef STM32N6570_DK_REV
-          HAL_UART_Transmit(&huart2, (uint8_t *)dbg_msg, dlen, 100);
-#else
-          HAL_UART_Transmit(&huart1, (uint8_t *)dbg_msg, dlen, 100);
-#endif
-        }
-        mqtt_payload_idx = 0;
+      mqtt_payload[mqtt_payload_idx] = '\0';
+      if (strstr(mqtt_payload, "\"webcam\":0")) {
+        headless_mode_active = 1;
+      } else if (strstr(mqtt_payload, "\"webcam\":1")) {
+        headless_mode_active = 0;
       }
+      mqtt_payload_idx = 0;
     } else {
       if (mqtt_payload_idx < sizeof(mqtt_payload) - 1) {
         mqtt_payload[mqtt_payload_idx++] = uart_rx_buf;
@@ -332,6 +309,11 @@ static trk_ctx_t trk_ctx;
  * droite) */
 #define LINE_CROSS_POS 0.50f /* 50% de l'écran */
 #define LINE_AXIS 0          /* 0 = horizontal */
+
+static volatile int line_count_in =
+    0; /* Franchissements vers le bas  (ou droite) */
+static volatile int line_count_out =
+    0; /* Franchissements vers le haut (ou gauche) */
 /* --------------------------------------- */
 
 typedef struct {
@@ -1199,8 +1181,6 @@ static void pp_thread_fct(void *arg) {
       printf("%s", dbg_msg);
 #ifdef STM32N6570_DK_REV
       HAL_UART_Transmit(&huart2, (uint8_t *)dbg_msg, dlen, 100);
-#else
-      HAL_UART_Transmit(&huart1, (uint8_t *)dbg_msg, dlen, 100);
 #endif
       last_sent_count = current_stable_count;
     }
@@ -1358,8 +1338,6 @@ void app_run() {
   HAL_NVIC_EnableIRQ(USART1_IRQn);
   HAL_UART_Receive_IT(&huart1, &uart_rx_buf, 1);
 #ifdef STM32N6570_DK_REV
-  HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(USART2_IRQn);
   HAL_UART_Receive_IT(&huart2, &uart_rx_buf, 1);
 #endif
 

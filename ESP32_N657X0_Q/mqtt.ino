@@ -7,7 +7,7 @@ void connectToMQTT() {
       mqtt_client.subscribe(mqtt_topicSub);
       Serial.printf("Subscribed to topic: %s\n", mqtt_topicSub);
       mqtt_client.publish(
-          mqtt_topicPub, "Hi I'm ESP32 !! "); // Publish message upon connection
+          mqtt_topicPub, "{ \"status\": \"online\" }");
     } else {
       Serial.print("Failed to connect to MQTT broker, rc=");
       Serial.print(mqtt_client.state());
@@ -30,9 +30,9 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
   }
   Serial.println("\n-----------------------");
 
-  // Si le message concerne la webcam, on le transmet à la Nucleo via Serial2
-  if (message.indexOf("\"webcam\"") >= 0) {
-    Serial.println(">>> Commande webcam détectée, transmission à la Nucleo...");
-    Serial2.println(message); // \n déclenche le parsing dans app.c
+  // Transmettre la commande à la Nucleo si elle concerne la webcam, un reset ou une commande
+  if (message.indexOf("\"webcam\"") >= 0 || message.indexOf("\"reset\"") >= 0 || message.indexOf("\"cmd\"") >= 0) {
+    Serial.println(">>> Commande détectée, transmission à la Nucleo...");
+    Serial2.println(message); // \n déclenche le parsing dans app.c de la Nucleo
   }
 }
