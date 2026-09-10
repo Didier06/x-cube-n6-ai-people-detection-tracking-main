@@ -3,7 +3,7 @@
 // avec l'ESP32 si la connexion au wifi ne se fait plus : choisir Outils > Erase
 // all Flash before sketch upload.
 
-#include "include/ca_cert.h"
+#include "include/ca_cert_webprofs.h"
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -43,6 +43,7 @@ void setup() {
   // (SSID, Mot de passe)
   wifiMulti.addAP(SECRET_WIFI_SSID_1, SECRET_WIFI_PASS_1); // Contes Did
   wifiMulti.addAP(SECRET_WIFI_SSID_2, SECRET_WIFI_PASS_2); // Fablab
+  wifiMulti.addAP(SECRET_WIFI_SSID_3, SECRET_WIFI_PASS_3); // Fablab
 
   connectToWiFi();
 
@@ -58,6 +59,10 @@ void setup() {
   // 2. Démarrage du Serial2 pour écouter la STM32 Nucleo
   // Paramètres : Vitesse, Mode, RX Pin, TX Pin
   Serial2.begin(115200, SERIAL_8N1, RX2_PIN, TX2_PIN);
+
+  // esp32 V3 lora Heltec
+  // Serial2.begin(115200, SERIAL_8N1, 48, 47); // RX=GPIO48, TX=GPIO47
+
   Serial.println("En attente de la caméra STM32 sur Serial2...");
 }
 
@@ -81,6 +86,7 @@ void loop() {
   // S'il y a des données qui arrivent de la STM32...
   if (Serial2.available()) {
     // On lit la ligne jusqu'au retour à la ligne
+    // Serial.println("ok");
     String message = Serial2.readStringUntil('\n');
 
     // On retire les espaces inutiles ou le caractère '\r'
